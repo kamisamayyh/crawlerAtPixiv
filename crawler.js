@@ -176,19 +176,19 @@ function crawlerSrc(urls){//爬取图片页面
 //          writeFile("F:\\用户目录\\Documents\\Web\\crawlerAtPixiv\\text.txt",failUrls);
     });
 }
-function crawlerPictureSrc(url,callback){
+function crawlerPictureSrc(url,callback){//获取图片地址
     async.waterfall([
-            function(callback){
+            function(callback){//加载界面获取图片地址
                 getHtmlByRequest(url,function(res){
                     var $ = cheerio.load(res.text);
-                    var src = $('.wrapper .original-image').attr('data-src');
+                    var src = $('.wrapper .original-image').attr('data-src');//单数图片
                     var flag = false;
                     if(src){
                         callback(null,src,url,flag);
                     }
                     else{
                         flag = true;
-                        src = $('.works_display  a._work').attr('href');
+                        src = $('.works_display  a._work').attr('href');//复数图片
                         if(src==undefined){//错误暂时保留，pixiv跨域设置
                            // writeFile("F:\\用户目录\\Documents\\Web\\crawlerAtPixiv\\text.html",url);
                             flag = false;
@@ -205,46 +205,38 @@ function crawlerPictureSrc(url,callback){
                 else
                 if(flag){
                     src = "http://www.pixiv.net/"+src;
-                    request
-                        .get(src)
-                        .set({ 'Referer': url,'Cookie':cookie})
-                        .end(function(err,res){
-                            var $ = cheerio.load(res.text);
-                            var srcs = $(".manga .item-container a.full-size-container");//获取问题
-                            //writeFile("F:\\用户目录\\Documents\\Web\\crawlerAtPixiv\\text.txt",src+'\n');
+                    getByRequestAndReferer(src,url,function(err,res){//复数图片并发获取
+                        var $ = cheerio.load(res.text);
+                        var srcs = $(".manga .item-container a.full-size-container");
+                        //writeFile("F:\\用户目录\\Documents\\Web\\crawlerAtPixiv\\text.txt",src+'\n');
 
 //                            if(!srcs.html()){
 //                                console.log(res.statusCode);
 //                                writeFile("F:\\用户目录\\Documents\\Web\\crawlerAtPixiv\\text.html",res.text);
 //                                writeFile("F:\\用户目录\\Documents\\Web\\crawlerAtPixiv\\text.txt","htmlnull:"+src+'\n');
 //                            }
-                            var Srcs = [];
-                            for(var i=0;i<srcs.length;i++){
-                                Srcs.push("http://www.pixiv.net"+srcs.eq(i).attr("href"));
-                            }
-                            //console.log(Srcs);
-                            callback(null,src,Srcs,flag);
-                        });
+                        var Srcs = [];
+                        for(var i=0;i<srcs.length;i++){
+                            Srcs.push("http://www.pixiv.net"+srcs.eq(i).attr("href"));
+                        }
+                        //console.log(Srcs);
+                        callback(null,src,Srcs,flag);
+                    });
+
                 }
                 else{
                     callback(null,url,src,flag);
                 }
             },
-            function(url,srcs,flag,callback){
-
+            function(url,srcs,flag,callback){//进入图片显示页面，获取图片地址
                 if(flag){
-                    //console.log(srcs);
                     async.mapLimit(srcs,srcs.length,function(src,callback){
+                        getByRequestAndReferer(src,url,function(err,res){
+                            var $ = cheerio.load(res.text);
+                            var Src = $("img").attr("src");
 
-                        request
-                            .get(src)
-                            .set({ 'Referer': url,'Cookie':cookie})
-                            .end(function(err,res){
-                                var $ = cheerio.load(res.text);
-                                var Src = $("img").attr("src");
-                                //console.log(Src);
-                                callback(null,{url:src,src:Src});
-                            });
+                            callback(null,{url:src,src:Src});
+                        });
                     },function(err,result){
                         var Urls = [];
                         var Srcs = [];
@@ -261,30 +253,32 @@ function crawlerPictureSrc(url,callback){
                 }
             }
         ],
-        function(err,url,src,flag){
+        function(err,url,src,flag){//callback返回图片
             //console.log("src:"+src)
             callback(null,{url:url,src:src,arr:flag});
         });
 
 }
-function crawlerPictureSrcArr(url){
+function crawlerPictureSrcArr(url,referer,func){
 
 }
 function saveImg(url,dir,name,referer,callback){
-    request
-        .get(url)
-        .set({ 'Referer': referer})
-        .end(function(err,res){
-            fs.writeFile(dir + "/"+name, res.body, 'binary', function (err) {
-                if (err) throw err;
-                console.log('file saved '+name);
-                callback(null,name);
-            });
+    if (fs.existsSync(dir)) {
+        //console.log('已经创建过此更新目录了');
+    } else {
+        fs.mkdirSync(dir);
+        //console.log('更新目录已创建成功\n');
+    }
+    getByRequestAndReferer(url,referer,function(err,res){
+        fs.writeFile(dir + "/"+name, res.body, 'binary', function (err) {
+            if (err) throw err;
+            console.log('file saved '+name);
+            callback(null,name);
         });
+    });
 }
 function crawlerPicturePageAndNext(url,callback){
     getHtmlByRequest(url,function(res){
-
         var $ = cheerio.load(res.text);
         var imgs = $('._image-items .image-item a._work');
         for(var i=0;i< imgs.length;i++){
@@ -292,7 +286,6 @@ function crawlerPicturePageAndNext(url,callback){
             urls.push(url);
         }
         console.log(urls.length);
-
         var nextUrl = $('.next ._button').eq(0).attr('href');
         if(nextUrl!=undefined)
         crawlerPicturePageAndNext("http://www.pixiv.net/bookmark.php"+nextUrl,callback);
@@ -301,7 +294,19 @@ function crawlerPicturePageAndNext(url,callback){
         }
     });
 }
-
+function getByRequestAndReferer(url,referer,func){
+    request
+        .get(url)
+        .set({ 'Referer': referer,'Cookie':cookie})
+        .end(function(err,res){
+            if(err){
+                console.log("错误："+err+"重试链接url"+url);
+                getByRequestAndReferer(url,referer,func);
+                return;
+            }
+            func(err,res);
+        });
+}
 function getHtmlByRequest(url,func){
     var headers={
         'Accept':'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
@@ -318,6 +323,13 @@ function getHtmlByRequest(url,func){
         .get(url)
         .set(headers)
         .end(function(err,res){
+            if(err){
+                console.log("错误："+err+"重试链接url"+url);
+
+                getHtmlByRequest(url,func);
+                //throw err+"url:"+url;
+                return;
+            }
             //if(res.headers)
             if(res.statusCode!=200){
                 console.log(url+"错误!");
