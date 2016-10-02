@@ -1,6 +1,7 @@
 /**
  * Created by SoRa on 2016/9/26 0026.
  */
+var path = require('path');
 var http = require('http');
 var https = require("https");
 var fs = require('fs');
@@ -16,7 +17,9 @@ var async = require('async');
 
 var cookie=new Array();
 var urls = new Array();
-var dir = './data';
+
+var dir = path.resolve('./')+"/data/"+new Date().getFullYear()+new Date().getMonth()+new Date().getDay()+new Date().getHours()+new Date().getMinutes()+new Date().getSeconds() ;
+//var dir =path.resolve('./')+"/data/"+new Date().toLocaleString();
 async.waterfall([
     function(callback){//获取登陆页面
         var url = "https://accounts.pixiv.net/login?lang=zh&source=pc&view_type=page&ref=wwwtop_accounts_index";
@@ -158,7 +161,7 @@ function crawlerSrc(urls){//爬取图片页面
 //        for(var i in failUrls){
 //            writeFile("F:\\用户目录\\Documents\\Web\\crawlerAtPixiv\\text.txt",failUrls[i]+'\n');
 //        }
-        console.log(failUrls);
+        console.log(failUrls);//控制台打印失败url
 
         var l = 20;
         var srcs = successes;
@@ -169,11 +172,6 @@ function crawlerSrc(urls){//爬取图片页面
 
             //console.log("下载完成！"+result.length+"个");
         });
-//        if(failUrls.length>0){
-//            crawlerSrc(failUrls);
-//        }
-//        console.log(failUrls.length);
-//          writeFile("F:\\用户目录\\Documents\\Web\\crawlerAtPixiv\\text.txt",failUrls);
     });
 }
 function crawlerPictureSrc(url,callback){//获取图片地址
@@ -208,13 +206,6 @@ function crawlerPictureSrc(url,callback){//获取图片地址
                     getByRequestAndReferer(src,url,function(err,res){//复数图片并发获取
                         var $ = cheerio.load(res.text);
                         var srcs = $(".manga .item-container a.full-size-container");
-                        //writeFile("F:\\用户目录\\Documents\\Web\\crawlerAtPixiv\\text.txt",src+'\n');
-
-//                            if(!srcs.html()){
-//                                console.log(res.statusCode);
-//                                writeFile("F:\\用户目录\\Documents\\Web\\crawlerAtPixiv\\text.html",res.text);
-//                                writeFile("F:\\用户目录\\Documents\\Web\\crawlerAtPixiv\\text.txt","htmlnull:"+src+'\n');
-//                            }
                         var Srcs = [];
                         for(var i=0;i<srcs.length;i++){
                             Srcs.push("http://www.pixiv.net"+srcs.eq(i).attr("href"));
