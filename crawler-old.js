@@ -50,8 +50,8 @@ async.waterfall([
         var post_key = $('#old-login').find("input[name='post_key']").val();
         console.log("post_key"+post_key);
         var postData = querystring.stringify({
-            'pixiv_id':'871147642@qq.com',
-            'password':'yyh000000',
+            'pixiv_id':'',
+            'password':'',
             'captcha':null,
             'g_recaptcha_response':null,
             'post_key':post_key,
