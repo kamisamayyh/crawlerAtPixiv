@@ -6,7 +6,7 @@ var async = require('async');
 
 var choice = require('./choice');
 var crawler = require('./crawler');
-var crawler_new = new crawler.crawler("871147642@qq.com",'yyh000000');
+var crawler_new = new crawler.crawler("用户名",'密码');
 crawler_new.login(function(){
     choice.choice.choice_crawler(
         function(){
